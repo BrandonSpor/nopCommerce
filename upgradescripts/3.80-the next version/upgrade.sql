@@ -1052,6 +1052,24 @@ set @resources='
   <LocaleResource Name="Admin.Configuration.Shipping.Methods.Description">
     <Value>Shipping methods used by offline shipping providers. For example, "Manual (Fixed or By Weight)".</Value>
   </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Blog.ShowBlogCommentsPerStore">
+    <Value>Blog comments per store</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.Blog.ShowBlogCommentsPerStore.Hint">
+    <Value>Check to display blog comments written in the current store only.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.News.ShowNewsCommentsPerStore">
+    <Value>News comments per store</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.Configuration.Settings.News.ShowNewsCommentsPerStore.Hint">
+    <Value>Check to display news comments written in the current store only.</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.ContentManagement.Blog.Comments.Fields.StoreName">
+    <Value>Store name</Value>
+  </LocaleResource>
+  <LocaleResource Name="Admin.ContentManagement.News.Comments.Fields.StoreName">
+    <Value>Store name</Value>
+  </LocaleResource>
 </Language>
 '
 
@@ -3100,8 +3118,6 @@ BEGIN
 END
 GO
 
-
-
 --new column
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=object_id('[Customer]') and NAME='EmailToRevalidate')
 BEGIN
@@ -3110,7 +3126,6 @@ BEGIN
 END
 GO
 
-
 -- new message template
  IF NOT EXISTS (SELECT 1 FROM [dbo].[MessageTemplate] WHERE [Name] = N'Customer.EmailRevalidationMessage')
  BEGIN
@@ -3118,7 +3133,6 @@ GO
 	VALUES (N'Customer.EmailRevalidationMessage', NULL, N'%Store.Name%. Email validation.', N'<p><a href="%Store.URL%">%Store.Name%</a> <br /><br />Hello %Customer.FullName%!<br /> To validate your new email address <a href="%Customer.EmailRevalidationURL%">click here</a> .<br />  <br />  %Store.Name%</p>', 1, 0, 0, 0, 0)
  END
  GO
-
 
 --new column
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=object_id('[Order]') and NAME='RewardPointsHistoryEntryId')
@@ -3145,3 +3159,77 @@ BEGIN
 	ALTER TABLE [Order] DROP COLUMN [RewardPointsWereAdded]
 END
 GO
+
+--new column
+ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=object_id('[BlogComment]') and NAME='StoreId')
+ BEGIN
+ 	ALTER TABLE [dbo].[BlogComment]
+    ADD [StoreId] int NULL
+ END
+ GO
+
+ DECLARE @DefaultStoreId int
+ SET @DefaultStoreId = (SELECT TOP (1) Id FROM [dbo].[Store]);
+  --set default value to store column
+ UPDATE [dbo].[BlogComment]
+ SET StoreId = @DefaultStoreId
+ WHERE StoreId IS NULL
+ GO
+ 
+ ALTER TABLE [dbo].[BlogComment] ALTER COLUMN [StoreId] int NOT NULL
+ GO
+ 
+ IF EXISTS (SELECT 1 FROM sys.objects WHERE name = 'BlogComment_Store' AND parent_object_id = Object_id('BlogComment') AND Objectproperty(object_id, N'IsForeignKey') = 1)
+ ALTER TABLE [dbo].[BlogComment]
+ DROP CONSTRAINT BlogComment_Store
+ GO
+ 
+ALTER TABLE [dbo].[BlogComment] WITH CHECK ADD CONSTRAINT [BlogComment_Store] FOREIGN KEY([StoreId])
+REFERENCES [dbo].[Store] ([Id])
+ON DELETE CASCADE
+GO
+
+--new setting
+ IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'blogsettings.showblogcommentsperstore')
+ BEGIN
+ 	INSERT [Setting] ([Name], [Value], [StoreId])
+ 	VALUES (N'blogsettings.showblogcommentsperstore', N'False', 0)
+ END
+ GO
+
+ --new column
+ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id=object_id('[NewsComment]') and NAME='StoreId')
+ BEGIN
+ 	ALTER TABLE [dbo].[NewsComment]
+    ADD [StoreId] int NULL
+ END
+ GO
+
+ DECLARE @DefaultStoreId int
+ SET @DefaultStoreId = (SELECT TOP (1) Id FROM [dbo].[Store]);
+  --set default value to store column
+ UPDATE [dbo].[NewsComment]
+ SET StoreId = @DefaultStoreId
+ WHERE StoreId IS NULL
+ GO
+ 
+ ALTER TABLE [dbo].[NewsComment] ALTER COLUMN [StoreId] int NOT NULL
+ GO
+ 
+ IF EXISTS (SELECT 1 FROM sys.objects WHERE name = 'NewsComment_Store' AND parent_object_id = Object_id('NewsComment') AND Objectproperty(object_id, N'IsForeignKey') = 1)
+ ALTER TABLE [dbo].[NewsComment]
+ DROP CONSTRAINT NewsComment_Store
+ GO
+ 
+ALTER TABLE [dbo].[NewsComment] WITH CHECK ADD CONSTRAINT [NewsComment_Store] FOREIGN KEY([StoreId])
+REFERENCES [dbo].[Store] ([Id])
+ON DELETE CASCADE
+GO
+
+--new setting
+ IF NOT EXISTS (SELECT 1 FROM [Setting] WHERE [name] = N'newssettings.shownewscommentsperstore')
+ BEGIN
+ 	INSERT [Setting] ([Name], [Value], [StoreId])
+ 	VALUES (N'newssettings.shownewscommentsperstore', N'False', 0)
+ END
+ GO

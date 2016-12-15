@@ -169,8 +169,8 @@ namespace Nop.Admin.Controllers
                         m.EndDate = _dateTimeHelper.ConvertToUserTime(x.EndDateUtc.Value, DateTimeKind.Utc);
                     m.CreatedOn = _dateTimeHelper.ConvertToUserTime(x.CreatedOnUtc, DateTimeKind.Utc);
                     m.LanguageName = x.Language.Name;
-                    m.ApprovedComments = _newsService.GetNewsCommentsCount(x, true);
-                    m.NotApprovedComments = _newsService.GetNewsCommentsCount(x, false);
+                    m.ApprovedComments = _newsService.GetNewsCommentsCount(x, isApproved: true);
+                    m.NotApprovedComments = _newsService.GetNewsCommentsCount(x, isApproved: false);
 
                     return m;
                 }),
@@ -348,7 +348,9 @@ namespace Nop.Admin.Controllers
                 //filter comments by news item
                 _newsService.GetNewsById(filterByNewsItemId.Value).NewsComments.OrderBy(bc => bc.CreatedOnUtc).ToList() :
                 //load all news comments
-                _newsService.GetAllComments(0);
+                _newsService.GetAllComments();
+
+            var storeNames = _storeService.GetAllStores().ToDictionary(store => store.Id, store => store.Name);
 
             var gridModel = new DataSourceResult
             {
@@ -365,6 +367,8 @@ namespace Nop.Admin.Controllers
                     commentModel.CommentTitle = newsComment.CommentTitle;
                     commentModel.CommentText = Core.Html.HtmlHelper.FormatText(newsComment.CommentText, false, true, false, false, false, false);
                     commentModel.IsApproved = newsComment.IsApproved;
+                    commentModel.StoreId = newsComment.StoreId;
+                    commentModel.StoreName = storeNames.ContainsKey(newsComment.StoreId) ? storeNames[newsComment.StoreId] : "Deleted";
 
                     return commentModel;
                 }),
